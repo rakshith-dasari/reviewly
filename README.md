@@ -1,4 +1,24 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Reviewly
+
+AI-powered product review summaries distilled from real user conversations. Reviewly searches Reddit, analyzes discussions with an LLM, and renders a clean, structured verdict with rating, pros, cons, and a concise summary—complete with sources and optional reasoning.
+
+## Key Features
+
+- **AI review synthesis**: Converts noisy Reddit threads into a single, trustworthy JSON summary (rating, pros, cons, description).
+- **Live, low-latency streaming**: See the response stream in real time with smooth autoscroll and minimal UI jank.
+- **Verified source citations**: One-click sources panel lists every URL used in the analysis.
+- **On-demand reasoning**: Expandable reasoning lets you peek behind the curtain—kept collapsed by default for a clean UI.
+- **Tool calling with traces**: Collapsible tool panels show parameters and outputs (e.g., Reddit fetches) without cluttering the chat.
+- **Model picker**: Swap between GPT‑4o, DeepSeek R1, and OSS models; works great with OpenRouter or native OpenAI.
+- **JSON‑first UI**: Structured output is resiliently parsed and rendered as beautiful cards.
+- **Quality of life**: Retry last prompt, one‑click copy, dark/light theme toggle.
+
+## How It Works
+
+1. You describe the product or topic you want reviewed.
+2. A server‑side tool searches Reddit and retrieves relevant posts + comments.
+3. The LLM analyzes signal vs. noise and emits a strict JSON schema.
+4. The UI renders rating, pros/cons, and a concise description, with sources and reasoning available on demand.
 
 ## Getting Started
 
@@ -14,23 +34,50 @@ pnpm dev
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000 to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Configuration (OpenRouter or OpenAI)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+You can run with native OpenAI or route through OpenRouter for access to many providers/models.
 
-## Learn More
+1. Create a `.env.local` file in `ai-chatbot/` with one of the following setups.
 
-To learn more about Next.js, take a look at the following resources:
+OpenRouter (recommended for model variety):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+OPENAI_API_KEY=sk-or-v1_...           # your OpenRouter API key
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+# Optional attribution/policy headers depending on platform support
+# OPENROUTER_HTTP_REFERER=http://localhost:3000
+# OPENROUTER_APP_TITLE=Reviewly
+```
 
-## Deploy on Vercel
+Native OpenAI:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+OPENAI_API_KEY=sk-live-...
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Then restart the dev server:
+
+```
+npm run dev
+```
+
+No code changes are required; the API route passes the selected model slug to the configured OpenAI‑compatible endpoint.
+
+## Tech Stack
+
+- **Framework**: Next.js (App Router), TypeScript
+- **LLM SDK**: Vercel AI SDK (`useChat`, streaming UI parts)
+- **Models**: GPT‑4o, DeepSeek R1, OSS via OpenRouter (or native OpenAI)
+- **UI**: Tailwind + shadcn/ui, Lucide icons, `streamdown` for streaming markdown
+- **UX utilities**: `use-stick-to-bottom` for smooth autoscroll
+- **Validation**: `zod` for tool input schemas; step limiter on tool calls
+
+## Roadmap
+
+- Additional sources beyond Reddit (e.g., Amazon, YouTube, forums)
+- Saved reviews, shareable links, and export to Markdown/JSON
+- Quality presets (speed vs. depth) and multi-model consensus

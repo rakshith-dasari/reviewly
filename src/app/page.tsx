@@ -1,103 +1,478 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent } from "@/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputButton,
+  PromptInputModelSelect,
+  PromptInputModelSelectContent,
+  PromptInputModelSelectItem,
+  PromptInputModelSelectTrigger,
+  PromptInputModelSelectValue,
+  PromptInputSubmit,
+  PromptInputTextarea,
+  PromptInputToolbar,
+  PromptInputTools,
+} from "@/components/ai-elements/prompt-input";
+import { Actions, Action } from "@/components/ai-elements/actions";
+import { Fragment, useEffect, useState } from "react";
+import { useChat } from "@ai-sdk/react";
+import type { ToolUIPart } from "ai";
+import { Response } from "@/components/ai-elements/response";
+import { CopyIcon, RefreshCcwIcon, MoonIcon, SunIcon } from "lucide-react";
+import {
+  Source,
+  Sources,
+  SourcesContent,
+  SourcesTrigger,
+} from "@/components/ai-elements/sources";
+import {
+  Reasoning,
+  ReasoningContent,
+  ReasoningTrigger,
+} from "@/components/ai-elements/reasoning";
+import { Loader } from "@/components/ai-elements/loader";
+import {
+  Tool,
+  ToolContent,
+  ToolHeader,
+  ToolInput,
+  ToolOutput,
+} from "@/components/ai-elements/tool";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
+type Review = {
+  rating: number;
+  pros: string[];
+  cons: string[];
+  description: string;
+};
+
+function parseReviewJSON(text: string): Review | null {
+  const trimmed = String(text || "").trim();
+  const unfenced = trimmed.startsWith("```")
+    ? trimmed.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "")
+    : trimmed;
+  try {
+    const obj = JSON.parse(unfenced);
+    if (
+      obj &&
+      typeof obj.rating === "number" &&
+      Number.isFinite(obj.rating) &&
+      Math.floor(obj.rating) === obj.rating &&
+      obj.rating >= 1 &&
+      obj.rating <= 10 &&
+      Array.isArray(obj.pros) &&
+      Array.isArray(obj.cons) &&
+      typeof obj.description === "string"
+    ) {
+      return {
+        rating: obj.rating,
+        pros: obj.pros.filter((p: unknown) => typeof p === "string"),
+        cons: obj.cons.filter((c: unknown) => typeof c === "string"),
+        description: obj.description,
+      } as Review;
+    }
+  } catch (_) {
+    // fall through
+  }
+  return null;
+}
+
+function ratingAccent(rating: number) {
+  if (rating >= 8) {
+    return {
+      title: "text-green-600 dark:text-green-400",
+      headerBg: "from-green-500/15 to-emerald-500/10",
+      bar: "bg-green-500",
+      border: "border-green-500/20 dark:border-green-400/20",
+    } as const;
+  }
+  if (rating >= 5) {
+    return {
+      title: "text-amber-600 dark:text-amber-400",
+      headerBg: "from-amber-500/15 to-yellow-500/10",
+      bar: "bg-amber-500",
+      border: "border-amber-500/20 dark:border-amber-400/20",
+    } as const;
+  }
+  return {
+    title: "text-red-600 dark:text-red-400",
+    headerBg: "from-red-500/15 to-rose-500/10",
+    bar: "bg-red-500",
+    border: "border-red-500/20 dark:border-red-400/20",
+  } as const;
+}
+
+function ReviewCards({ review }: { review: Review }) {
+  const accent = ratingAccent(review.rating);
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full">
+      <Card className="border">
+        <CardHeader className="pb-4 rounded-t-lg">
+          <CardDescription>Rating</CardDescription>
+          <CardTitle className={cn("text-4xl", accent.title)}>
+            {review.rating}/10
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="mt-1 h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div
+              className={cn("h-full rounded-full", accent.bar)}
+              style={{ width: `${review.rating * 10}%` }}
             />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+          </div>
+        </CardContent>
+      </Card>
+      <Card className="border">
+        <CardHeader className="rounded-t-lg">
+          <CardDescription>Description</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm leading-6">{review.description}</p>
+        </CardContent>
+      </Card>
+      <Card className="border">
+        <CardHeader className="rounded-t-lg">
+          <CardDescription>Pros</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            {review.pros.map((p, i) => (
+              <li key={`pro-${i}`}>{p}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+      <Card className="border">
+        <CardHeader className="rounded-t-lg">
+          <CardDescription>Cons</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <ul className="list-disc list-inside space-y-1 text-sm">
+            {review.cons.map((c, i) => (
+              <li key={`con-${i}`}>{c}</li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
     </div>
   );
 }
+
+const models = [
+  {
+    name: "GPT OSS 20B",
+    value: "openai/gpt-oss-20b:free",
+  },
+  {
+    name: "GPT 4o",
+    value: "openai/gpt-4o",
+  },
+  {
+    name: "Deepseek R1",
+    value: "deepseek/deepseek-r1",
+  },
+];
+
+const ChatBotDemo = () => {
+  const [input, setInput] = useState("");
+  const [model, setModel] = useState<string>(models[0].value);
+  const [isDark, setIsDark] = useState<boolean>(true);
+  const { messages, sendMessage, status } = useChat();
+
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem("theme");
+      const resolved = stored ? stored === "dark" : true;
+      setIsDark(resolved);
+    } catch (_) {
+      // noop
+    }
+  }, []);
+
+  const handleRetry = () => {
+    const lastUserMessage = [...messages]
+      .reverse()
+      .find((m) => m.role === "user");
+    const lastUserText = (
+      lastUserMessage?.parts.find((p) => p.type === "text") as any
+    )?.text as string | undefined;
+    if (lastUserText) {
+      sendMessage(
+        { text: lastUserText },
+        {
+          body: {
+            model: model,
+          },
+        }
+      );
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (input.trim()) {
+      sendMessage(
+        { text: input },
+        {
+          body: {
+            model: model,
+          },
+        }
+      );
+      setInput("");
+    }
+  };
+
+  const toggleTheme = () => {
+    const root = document.documentElement;
+    const next = !isDark;
+    setIsDark(next);
+    if (next) {
+      root.classList.add("dark");
+      localStorage.setItem("theme", "dark");
+    } else {
+      root.classList.remove("dark");
+      localStorage.setItem("theme", "light");
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto p-6 relative size-full h-screen">
+      <div className="flex flex-col h-full">
+        <h1 className="text-6xl font-bold mb-4 mt-4">Reviewly</h1>
+        <Conversation className="h-full">
+          <ConversationContent>
+            {/* Live status indicator */}
+            {(() => {
+              // Determine a human-friendly live status label
+              let liveLabel: string | null = null;
+
+              // Show analyzing when user just submitted the prompt
+              if (status === "submitted") {
+                liveLabel = "Analyzing…";
+              }
+
+              // If a tool is currently running, show a tool-specific label
+              // Find the most recent assistant tool part that hasn't completed
+              for (let i = messages.length - 1; i >= 0; i--) {
+                const m = messages[i];
+                if (m.role !== "assistant") continue;
+                for (let j = m.parts.length - 1; j >= 0; j--) {
+                  const p: any = m.parts[j];
+                  const typeStr: string | undefined =
+                    typeof p?.type === "string" ? p.type : undefined;
+                  const isToolPart =
+                    !!typeStr &&
+                    (typeStr === "dynamic-tool" || typeStr.startsWith("tool-"));
+                  if (isToolPart) {
+                    const state = p.state as string | undefined;
+                    if (
+                      state &&
+                      state !== "output-available" &&
+                      state !== "output-error"
+                    ) {
+                      const toolKey =
+                        (p as any).toolName ||
+                        (p as any).name ||
+                        typeStr ||
+                        "tool";
+                      const keyStr = String(toolKey).toLowerCase();
+                      if (keyStr.includes("reddit")) {
+                        liveLabel = "Fetching Reddit posts…";
+                      } else {
+                        liveLabel = "Running tool…";
+                      }
+                      break;
+                    }
+                  }
+                }
+                if (liveLabel) break;
+              }
+
+              return liveLabel ? (
+                <div className="flex items-center gap-2 text-muted-foreground text-sm p-2">
+                  <Loader size={14} />
+                  <span>{liveLabel}</span>
+                </div>
+              ) : null;
+            })()}
+            {messages.map((message) => (
+              <div key={message.id}>
+                {message.role === "assistant" &&
+                  message.parts.some((part) => part.type === "source-url") && (
+                    <Sources>
+                      <SourcesTrigger
+                        count={
+                          message.parts.filter(
+                            (part) => part.type === "source-url"
+                          ).length
+                        }
+                      />
+                      {message.parts
+                        .filter((part) => part.type === "source-url")
+                        .map((part: any, i) => (
+                          <SourcesContent key={`${message.id}-${i}`}>
+                            <Source
+                              key={`${message.id}-${i}`}
+                              href={part.url}
+                              title={part.url}
+                            />
+                          </SourcesContent>
+                        ))}
+                    </Sources>
+                  )}
+                {message.parts.map((part, i) => {
+                  switch (part.type) {
+                    case "text":
+                      const text = (part as any).text as string;
+                      const isStreamingThisPart =
+                        status === "streaming" &&
+                        i === message.parts.length - 1 &&
+                        message.id === messages.at(-1)?.id;
+                      const review = !isStreamingThisPart
+                        ? parseReviewJSON(text)
+                        : null;
+                      return (
+                        <Fragment key={`${message.id}-${i}`}>
+                          <Message from={message.role}>
+                            <MessageContent>
+                              {review ? (
+                                <ReviewCards review={review} />
+                              ) : (
+                                <Response>{text}</Response>
+                              )}
+                            </MessageContent>
+                          </Message>
+                          {message.role === "assistant" &&
+                            message.id === messages.at(-1)?.id &&
+                            i === message.parts.length - 1 && (
+                              <Actions className="mt-2">
+                                <Action onClick={handleRetry} label="Retry">
+                                  <RefreshCcwIcon className="size-3" />
+                                </Action>
+                                <Action
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(text)
+                                  }
+                                  label="Copy"
+                                >
+                                  <CopyIcon className="size-3" />
+                                </Action>
+                              </Actions>
+                            )}
+                        </Fragment>
+                      );
+                    case "reasoning":
+                      return (
+                        <Reasoning
+                          key={`${message.id}-${i}`}
+                          className="w-full"
+                          isStreaming={
+                            status === "streaming" &&
+                            i === message.parts.length - 1 &&
+                            message.id === messages.at(-1)?.id
+                          }
+                        >
+                          <ReasoningTrigger />
+                          <ReasoningContent>
+                            {(part as any).text}
+                          </ReasoningContent>
+                        </Reasoning>
+                      );
+                    // Tool UI parts are dynamic: types are "dynamic-tool" or "tool-<name>"
+                    default: {
+                      const p: any = part as any;
+                      const typeStr: string | undefined =
+                        typeof p?.type === "string" ? p.type : undefined;
+                      const isToolPart =
+                        !!typeStr &&
+                        (typeStr === "dynamic-tool" ||
+                          typeStr.startsWith("tool-"));
+                      if (isToolPart) {
+                        // Coerce the type for ToolHeader: ensure it matches ToolUIPart['type']
+                        const toolType =
+                          typeStr as unknown as ToolUIPart["type"];
+                        return (
+                          <Tool key={`${message.id}-${i}`}>
+                            <ToolHeader type={toolType} state={p.state} />
+                            <ToolContent>
+                              <ToolInput input={p.input} />
+                              <ToolOutput
+                                output={p.output}
+                                errorText={p.errorText}
+                              />
+                            </ToolContent>
+                          </Tool>
+                        );
+                      }
+                      return null;
+                    }
+                  }
+                })}
+              </div>
+            ))}
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
+
+        <PromptInput onSubmit={handleSubmit} className="mt-4">
+          <PromptInputTextarea
+            onChange={(e) => setInput(e.target.value)}
+            value={input}
+          />
+          <PromptInputToolbar>
+            <PromptInputTools>
+              <PromptInputButton
+                variant="ghost"
+                onClick={toggleTheme}
+                aria-label="Toggle theme"
+              >
+                {isDark ? <SunIcon size={16} /> : <MoonIcon size={16} />}
+                <span className="hidden sm:inline">
+                  {isDark ? "Light" : "Dark"}
+                </span>
+              </PromptInputButton>
+              <PromptInputModelSelect
+                onValueChange={(value) => {
+                  setModel(value);
+                }}
+                value={model}
+              >
+                <PromptInputModelSelectTrigger>
+                  <PromptInputModelSelectValue />
+                </PromptInputModelSelectTrigger>
+                <PromptInputModelSelectContent>
+                  {models.map((model) => (
+                    <PromptInputModelSelectItem
+                      key={model.value}
+                      value={model.value}
+                    >
+                      {model.name}
+                    </PromptInputModelSelectItem>
+                  ))}
+                </PromptInputModelSelectContent>
+              </PromptInputModelSelect>
+            </PromptInputTools>
+            <PromptInputSubmit disabled={!input} status={status} />
+          </PromptInputToolbar>
+        </PromptInput>
+      </div>
+    </div>
+  );
+};
+
+export default ChatBotDemo;
