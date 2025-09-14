@@ -36,7 +36,7 @@ Rules:
 - pros and cons should be concise bullet-style phrases (5-8 items combined preferred)
 - description is a brief 2-3 sentence summary
 Respond with JSON only.`,
-    model: openrouter("openrouter/sonoma-dusk-alpha"),
+    model: openrouter(model),
     tools: {
       redditSearch: tool({
         description: "Gets reddit posts and comments for a given query",

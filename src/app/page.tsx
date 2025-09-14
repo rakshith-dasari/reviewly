@@ -173,28 +173,40 @@ function ReviewCards({ review }: { review: Review }) {
   );
 }
 
-const models = [
-  {
-    name: "Deepseek V3.1",
-    value: "deepseek/deepseek-chat-v3.1:free",
-  },
-  {
-    name: "Sonoma Dusk Alpha",
-    value: "openrouter/sonoma-dusk-alpha",
-  },
-  {
-    name: "Sonoma Sky Alpha",
-    value: "openrouter/sonoma-sky-alpha",
-  },
-  {
-    name: "GLM 4.5 Air",
-    value: "z-ai/glm-4.5-air:free",
-  },
+type ModelOption = { name: string; value: string };
+
+const defaultModels: ModelOption[] = [
+  { name: "Kimi K2", value: "moonshotai/kimi-k2:free" },
+  { name: "Deepseek V3.1", value: "deepseek/deepseek-chat-v3.1:free" },
+  { name: "GLM 4.5 Air", value: "z-ai/glm-4.5-air:free" },
 ];
+
+const models: ModelOption[] = (() => {
+  try {
+    const raw = process.env.NEXT_PUBLIC_MODELS;
+    if (!raw) return defaultModels;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      const cleaned = parsed
+        .map((m: any) => ({
+          name: typeof m?.name === "string" ? m.name : String(m?.name ?? ""),
+          value:
+            typeof m?.value === "string" ? m.value : String(m?.value ?? ""),
+        }))
+        .filter((m) => !!m.name && !!m.value);
+      return cleaned.length ? cleaned : defaultModels;
+    }
+  } catch (_) {
+    // ignore and use defaults
+  }
+  return defaultModels;
+})();
 
 const ChatBotDemo = () => {
   const [input, setInput] = useState("");
-  const [model, setModel] = useState<string>(models[0].value);
+  const [model, setModel] = useState<string>(
+    models[0]?.value ?? defaultModels[0].value
+  );
   const [isDark, setIsDark] = useState<boolean>(true);
   const { messages, sendMessage, status, setMessages } = useChat();
   const suggestions = ["iPhone Air", "BMW M3", "Take Care by Drake"] as const;
