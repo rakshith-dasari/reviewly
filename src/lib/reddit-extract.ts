@@ -47,13 +47,3 @@ export function extractRedditCore(input: unknown): RedditCore {
 
   return { title, post, comments: cleaned };
 }
-
-/* Example usage:
-  
-  import { extractRedditCore } from "./extractRedditCore";
-  
-  const json = await (await fetch("https://www.reddit.com/r/typescript/comments/xxxxxx.json")).json();
-  const { title, post, comments } = extractRedditCore(json);
-  console.log({ title, post, comments });
-  
-  */
