@@ -51,6 +51,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
 type Review = {
@@ -174,16 +175,20 @@ function ReviewCards({ review }: { review: Review }) {
 
 const models = [
   {
-    name: "GPT OSS 20B",
-    value: "openai/gpt-oss-20b:free",
+    name: "Deepseek V3.1",
+    value: "deepseek/deepseek-chat-v3.1:free",
   },
   {
-    name: "GPT 4o",
-    value: "openai/gpt-4o",
+    name: "Sonoma Dusk Alpha",
+    value: "openrouter/sonoma-dusk-alpha",
   },
   {
-    name: "Deepseek R1",
-    value: "deepseek/deepseek-r1",
+    name: "Sonoma Sky Alpha",
+    value: "openrouter/sonoma-sky-alpha",
+  },
+  {
+    name: "GLM 4.5 Air",
+    value: "z-ai/glm-4.5-air:free",
   },
 ];
 
@@ -191,7 +196,8 @@ const ChatBotDemo = () => {
   const [input, setInput] = useState("");
   const [model, setModel] = useState<string>(models[0].value);
   const [isDark, setIsDark] = useState<boolean>(true);
-  const { messages, sendMessage, status } = useChat();
+  const { messages, sendMessage, status, setMessages } = useChat();
+  const suggestions = ["iPhone Air", "BMW M3", "Take Care by Drake"] as const;
 
   useEffect(() => {
     try {
@@ -250,10 +256,25 @@ const ChatBotDemo = () => {
     }
   };
 
+  const handleReset = () => {
+    setInput("");
+    try {
+      // Clear chat transcript
+      setMessages([] as any);
+    } catch (_) {
+      // noop fallback
+    }
+    const el = document.getElementById(
+      "chat-input"
+    ) as HTMLTextAreaElement | null;
+    el?.focus();
+  };
+
   return (
     <div className="max-w-4xl mx-auto p-6 relative size-full h-screen">
       <div className="flex flex-col h-full">
         <h1 className="text-6xl font-bold mb-4 mt-4">Reviewly</h1>
+        <h2 className="text-md font-light mb-4">Review anything.</h2>
         <Conversation className="h-full">
           <ConversationContent>
             {/* Live status indicator */}
@@ -429,10 +450,41 @@ const ChatBotDemo = () => {
           <ConversationScrollButton />
         </Conversation>
 
+        {/* Suggested prompts */}
+        <div className="mt-3 mb-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+          <span>Try:</span>
+          {suggestions.map((s) => (
+            <Badge key={s} variant="secondary" asChild>
+              <button
+                type="button"
+                className="cursor-pointer"
+                onClick={() => {
+                  sendMessage(
+                    { text: s },
+                    {
+                      body: {
+                        model: model,
+                      },
+                    }
+                  );
+                  setInput("");
+                  const el = document.getElementById(
+                    "chat-input"
+                  ) as HTMLTextAreaElement | null;
+                  el?.focus();
+                }}
+              >
+                {s}
+              </button>
+            </Badge>
+          ))}
+        </div>
+
         <PromptInput onSubmit={handleSubmit} className="mt-4">
           <PromptInputTextarea
             onChange={(e) => setInput(e.target.value)}
             value={input}
+            id="chat-input"
           />
           <PromptInputToolbar>
             <PromptInputTools>
@@ -445,6 +497,14 @@ const ChatBotDemo = () => {
                 <span className="hidden sm:inline">
                   {isDark ? "Light" : "Dark"}
                 </span>
+              </PromptInputButton>
+              <PromptInputButton
+                variant="ghost"
+                onClick={handleReset}
+                aria-label="Reset chat"
+              >
+                <RefreshCcwIcon size={16} />
+                <span className="hidden sm:inline">Reset</span>
               </PromptInputButton>
               <PromptInputModelSelect
                 onValueChange={(value) => {
