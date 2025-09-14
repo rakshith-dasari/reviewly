@@ -7,7 +7,7 @@ async function searchGoogle(query: string) {
   try {
     const res = await customsearch.cse.list({
       cx: process.env.GOOGLE_CSE_ID!, // Your Custom Search Engine ID
-      q: query,
+      q: query + "reddit",
       auth: process.env.GOOGLE_API_KEY!, // Your API key
     });
     return res.data.items?.slice(0, 5);
