@@ -12,6 +12,8 @@ import { createOpenAI } from "@ai-sdk/openai";
 
 // Allow streaming responses up to 30 seconds
 export const maxDuration = 30;
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
