@@ -16,7 +16,10 @@ const openrouter = createOpenRouter({
   apiKey: process.env.OPENROUTER_API_KEY,
 });
 
-export async function getLLMResponseTools(messages: UIMessage[], model: string) {
+export async function getLLMResponseTools(
+  messages: UIMessage[],
+  model: string,
+) {
   const result = await streamText({
     model: openrouter(model),
     tools: {

@@ -205,7 +205,7 @@ const models: ModelOption[] = (() => {
 const ChatBotDemo = () => {
   const [input, setInput] = useState("");
   const [model, setModel] = useState<string>(
-    models[0]?.value ?? defaultModels[0].value
+    models[0]?.value ?? defaultModels[0].value,
   );
   const [isDark, setIsDark] = useState<boolean>(true);
   const { messages, sendMessage, status, setMessages } = useChat();
@@ -235,7 +235,7 @@ const ChatBotDemo = () => {
           body: {
             model: model,
           },
-        }
+        },
       );
     }
   };
@@ -249,7 +249,7 @@ const ChatBotDemo = () => {
           body: {
             model: model,
           },
-        }
+        },
       );
       setInput("");
     }
@@ -277,7 +277,7 @@ const ChatBotDemo = () => {
       // noop fallback
     }
     const el = document.getElementById(
-      "chat-input"
+      "chat-input",
     ) as HTMLTextAreaElement | null;
     el?.focus();
   };
@@ -351,7 +351,7 @@ const ChatBotDemo = () => {
                       <SourcesTrigger
                         count={
                           message.parts.filter(
-                            (part) => part.type === "source-url"
+                            (part) => part.type === "source-url",
                           ).length
                         }
                       />
@@ -477,11 +477,11 @@ const ChatBotDemo = () => {
                       body: {
                         model: model,
                       },
-                    }
+                    },
                   );
                   setInput("");
                   const el = document.getElementById(
-                    "chat-input"
+                    "chat-input",
                   ) as HTMLTextAreaElement | null;
                   el?.focus();
                 }}

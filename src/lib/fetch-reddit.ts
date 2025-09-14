@@ -13,18 +13,28 @@ async function searchGoogle(query: string) {
 }
 
 async function fetchRedditPostsFromLinks(items: any[]): Promise<RedditCore[]> {
-    if (items.length === 0) {
-        return [{"title": "No posts found", "post": "No posts found", "comments": ["No posts found"]}] as RedditCore[];
-    }
-  return Promise.all(items.map(async (item) => {
-    const redditJson = await (await fetch(`${item.link}/.json`)).json() as unknown;
-    const redditCore = extractRedditCore(redditJson) as RedditCore;
-    return redditCore;
-  }));
+  if (items.length === 0) {
+    return [
+      {
+        title: "No posts found",
+        post: "No posts found",
+        comments: ["No posts found"],
+      },
+    ] as RedditCore[];
+  }
+  return Promise.all(
+    items.map(async (item) => {
+      const redditJson = (await (
+        await fetch(`${item.link}/.json`)
+      ).json()) as unknown;
+      const redditCore = extractRedditCore(redditJson) as RedditCore;
+      return redditCore;
+    }),
+  );
 }
 
 export async function fetchRedditPosts(query: string) {
-  const posts = await searchGoogle(query) || [];
+  const posts = (await searchGoogle(query)) || [];
   const redditPosts = await fetchRedditPostsFromLinks(posts || []);
   return redditPosts;
 }
