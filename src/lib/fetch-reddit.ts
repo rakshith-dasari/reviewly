@@ -60,124 +60,62 @@ async function searchGoogleRest(query: string) {
 
 // Discovery is performed via Google CSE only
 
-// Realistic User-Agent strings to rotate through
-const USER_AGENTS = [
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.1 Safari/605.1.15",
-  "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:120.0) Gecko/20100101 Firefox/120.0",
-  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-];
-
-function getRandomUserAgent(): string {
-  return (
-    process.env.OUTBOUND_USER_AGENT ||
-    USER_AGENTS[Math.floor(Math.random() * USER_AGENTS.length)]
-  );
-}
-
-async function randomDelay(min = 500, max = 1500) {
-  const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-  await new Promise((resolve) => setTimeout(resolve, delay));
-}
-
 async function fetchRedditJson(link: string): Promise<unknown> {
-  // Try different Reddit URL patterns to avoid detection
-  const urlVariations = [
-    `${link}/.json`,
-    `${link.replace("www.reddit.com", "old.reddit.com")}/.json`,
-    `${link}/.json?raw_json=1`,
-    `${link}/.json?limit=100`, // Try with limit parameter
-    `${link.replace("www.reddit.com", "i.reddit.com")}/.json`, // Try mobile interface
-  ];
+  const url = `${link}/.json`;
+  const headers: Record<string, string> = {
+    Accept: "application/json, text/plain;q=0.9",
+    "User-Agent":
+      process.env.OUTBOUND_USER_AGENT ||
+      "Mozilla/5.0 (compatible; reviewly-bot/1.0; +https://reviewly.app)",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
+    Connection: "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+  };
 
-  for (let urlIndex = 0; urlIndex < urlVariations.length; urlIndex++) {
-    const url = urlVariations[urlIndex];
+  try {
+    const res = await fetchWithTimeout(url, {
+      headers,
+      redirect: "follow",
+      cache: "no-store",
+      timeoutMs: 15_000, // Increased timeout for serverless
+    });
 
-    // Add random delay between different URL attempts
-    if (urlIndex > 0) {
-      await randomDelay(1000, 2000);
+    if (!res.ok) {
+      console.error(
+        `Reddit fetch failed: ${res.status} ${res.statusText} for ${url}`
+      );
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
     }
 
-    const headers: Record<string, string> = {
-      Accept:
-        "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
-      "User-Agent": getRandomUserAgent(),
-      "Accept-Language": "en-US,en;q=0.5",
-      "Accept-Encoding": "gzip, deflate, br",
-      DNT: "1",
-      Connection: "keep-alive",
-      "Upgrade-Insecure-Requests": "1",
-      "Sec-Fetch-Dest": "document",
-      "Sec-Fetch-Mode": "navigate",
-      "Sec-Fetch-Site": "none",
-      "Sec-Fetch-User": "?1",
-      "Cache-Control": "max-age=0",
-    };
-
-    try {
-      // Add small random delay to appear more human-like
-      await randomDelay();
-
-      const res = await fetchWithTimeout(url, {
-        headers,
-        redirect: "follow",
-        cache: "no-store",
-        timeoutMs: 20_000, // Increased timeout for serverless
-      });
-
-      if (res.ok) {
-        const contentType = res.headers.get("content-type") || "";
-        let data: unknown;
-
-        if (contentType.includes("application/json")) {
-          data = await res.json();
-        } else {
-          // Try to parse as JSON even if content-type is wrong
-          const text = await res.text();
-          try {
-            data = JSON.parse(text);
-          } catch {
-            // If this URL variation failed, try the next one
-            console.warn(
-              `Failed to parse JSON from ${url}, trying next variation...`
-            );
-            continue;
-          }
-        }
-
-        console.log(`Successfully fetched Reddit data from ${url}`);
-        return data;
-      } else {
-        console.warn(
-          `Reddit fetch failed with ${res.status} for ${url}, trying next variation...`
-        );
-        // Don't throw immediately, try next URL variation
-        continue;
+    const contentType = res.headers.get("content-type") || "";
+    if (!contentType.includes("application/json")) {
+      const text = await res.text();
+      console.warn(`Non-JSON content-type received: ${contentType}`);
+      // Some backends mislabel JSON as text/plain
+      try {
+        return JSON.parse(text);
+      } catch (parseError) {
+        console.error(`Failed to parse response as JSON: ${parseError}`);
+        throw new Error("Non-JSON response");
       }
-    } catch (error) {
-      console.warn(`Error with ${url}:`, error);
-      // Try next URL variation
-      continue;
     }
+    return (await res.json()) as unknown;
+  } catch (error) {
+    console.error(`Error fetching Reddit JSON from ${url}:`, error);
+    throw error;
   }
-
-  // If all URL variations failed, throw error
-  console.error(`All Reddit URL variations failed for ${link}`);
-  throw new Error(
-    `Failed to fetch Reddit data after trying ${urlVariations.length} different URLs`
-  );
 }
 
 async function fetchRedditJsonWithRetry(
   link: string,
-  maxRetries = 1 // Reduced retries since we try multiple URLs
+  maxRetries = 2
 ): Promise<unknown> {
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       // Add exponential backoff delay for retries
       if (attempt > 0) {
-        const delay = Math.min(3000 * Math.pow(2, attempt - 1), 10000); // Longer delays
+        const delay = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
         console.log(
           `Retrying Reddit fetch (attempt ${
             attempt + 1
@@ -225,18 +163,9 @@ async function fetchRedditPostsFromLinks(items: any[]): Promise<RedditCore[]> {
   }
 
   const results: RedditCore[] = [];
-  for (let i = 0; i < redditItems.length; i++) {
-    const item = redditItems[i];
-
+  for (const item of redditItems) {
     try {
-      // Add random delay between posts to appear more human-like
-      if (i > 0) {
-        await randomDelay(2000, 4000);
-      }
-
-      console.log(
-        `Fetching Reddit post ${i + 1}/${redditItems.length}: ${item.link}`
-      );
+      console.log(`Fetching Reddit post: ${item.link}`);
       const redditJson = await fetchRedditJsonWithRetry(item.link);
       const redditCore = extractRedditCore(redditJson) as RedditCore;
       results.push(redditCore);
