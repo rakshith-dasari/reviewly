@@ -1,10 +1,4 @@
-import {
-  streamText,
-  UIMessage,
-  convertToModelMessages,
-  stepCountIs,
-  tool,
-} from "ai";
+import { streamText, convertToModelMessages, stepCountIs, tool } from "ai";
 import { createOpenRouter } from "@openrouter/ai-sdk-provider";
 import { fetchRedditPosts } from "@/lib/fetch-reddit";
 import z from "zod";
