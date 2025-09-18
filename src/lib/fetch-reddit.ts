@@ -1,57 +1,28 @@
 import { extractRedditCore, RedditCore } from "@/lib/reddit-extract";
+import { google } from "googleapis";
 
-/**
- * Simple timeout wrapper for fetch to avoid hanging in serverless environments.
- */
-async function fetchWithTimeout(
-  input: RequestInfo | URL,
-  init: RequestInit & { timeoutMs?: number } = {}
-) {
-  const { timeoutMs = 10_000, ...rest } = init;
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
+const customsearch = google.customsearch("v1");
+
+async function searchGoogle(query: string) {
   try {
-    return await fetch(input, { ...rest, signal: controller.signal });
-  } finally {
-    clearTimeout(id);
+    const res = await customsearch.cse.list({
+      cx: process.env.GOOGLE_CSE_ID!, // Your Custom Search Engine ID
+      q: query + "reddit",
+      auth: process.env.GOOGLE_API_KEY!, // Your API key
+    });
+    return res.data.items?.slice(0, 5);
+  } catch (error) {
+    return [];
   }
 }
-
-async function searchGoogleRest(query: string) {
-  const key = process.env.GOOGLE_API_KEY;
-  const cx = process.env.GOOGLE_CSE_ID;
-  if (!key || !cx) return [] as any[];
-
-  const url = new URL("https://www.googleapis.com/customsearch/v1");
-  url.searchParams.set("key", key);
-  url.searchParams.set("cx", cx);
-  url.searchParams.set("q", `${query} reddit`);
-
-  try {
-    const res = await fetchWithTimeout(url, { cache: "no-store" });
-    if (!res.ok) return [] as any[];
-    const data = (await res.json()) as { items?: any[] };
-    return (data.items || []).slice(0, 5);
-  } catch {
-    return [] as any[];
-  }
-}
-
-// Discovery is performed via Google CSE only
 
 async function fetchRedditJson(link: string): Promise<unknown> {
   const url = `${link}/.json`;
   const headers: Record<string, string> = {
     Accept: "application/json, text/plain;q=0.9",
-    "User-Agent":
-      process.env.OUTBOUND_USER_AGENT ||
-      "reviewly/1.0 (https://your-domain.example; contact@example.com)",
+    "User-Agent": "reviewly/1.0 (+https://github.com/)",
   };
-  const res = await fetchWithTimeout(url, {
-    headers,
-    redirect: "follow",
-    cache: "no-store",
-  });
+  const res = await fetch(url, { headers, redirect: "follow" });
   if (!res.ok) {
     throw new Error(`HTTP ${res.status}`);
   }
@@ -117,8 +88,7 @@ async function fetchRedditPostsFromLinks(items: any[]): Promise<RedditCore[]> {
 }
 
 export async function fetchRedditPosts(query: string) {
-  // Use Google CSE to find Reddit post links
-  const posts = (await searchGoogleRest(query)) || [];
+  const posts = (await searchGoogle(query)) || [];
   const redditPosts = await fetchRedditPostsFromLinks(posts || []);
   return redditPosts;
 }
