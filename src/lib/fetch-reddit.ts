@@ -11,7 +11,7 @@ async function searchGoogle(query: string) {
       q: query + "site:reddit.com",
       auth: process.env.GOOGLE_API_KEY!, // Your API key
     });
-    const results = res.data.items?.slice(0, 5);
+    const results = res.data.items;
     console.log(
       `✅ Google search completed. Found ${results?.length || 0} results`
     );
@@ -128,6 +128,7 @@ async function fetchRedditPostsFromLinks(items: any[]): Promise<RedditCore[]> {
         title: "No posts found",
         post: "No posts found",
         comments: ["No posts found"],
+        createdAt: 0,
       },
     ];
   }
@@ -164,6 +165,7 @@ async function fetchRedditPostsFromLinks(items: any[]): Promise<RedditCore[]> {
         title: "No posts found",
         post: "No posts found",
         comments: ["No posts found"],
+        createdAt: 0,
       },
     ];
   }
@@ -179,5 +181,5 @@ export async function fetchRedditPosts(query: string) {
   const redditPosts = await fetchRedditPostsFromLinks(posts || []);
   console.log(`🎉 Final result: ${redditPosts.length} Reddit posts retrieved`);
 
-  return redditPosts;
+  return {posts: redditPosts.slice(0, 5), chartData: redditPosts};
 }

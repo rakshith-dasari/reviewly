@@ -33,6 +33,7 @@ Rules:
 - description is a brief 2-3 sentence summary
 Respond with JSON only.`,
     model: openrouter(model),
+    // model: openai("gpt-4.1"),
     tools: {
       redditSearch: tool({
         description: "Gets reddit posts and comments for a given query",
@@ -41,7 +42,7 @@ Respond with JSON only.`,
         }),
         execute: async ({ query }) => ({
           query,
-          posts: await fetchRedditPosts(query),
+          ...(await fetchRedditPosts(query)),
         }),
       }),
     },

@@ -53,6 +53,8 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import SentimentChart from "@/components/ai-elements/sentiment-chart";
+import { computeSentimentSeries } from "@/lib/sentiment";
 
 type Review = {
   rating: number;
@@ -205,7 +207,7 @@ const models: ModelOption[] = (() => {
 const ChatBotDemo = () => {
   const [input, setInput] = useState("");
   const [model, setModel] = useState<string>(
-    models[0]?.value ?? defaultModels[0].value,
+    models[0]?.value ?? defaultModels[0].value
   );
   const [isDark, setIsDark] = useState<boolean>(true);
   const { messages, sendMessage, status, setMessages } = useChat();
@@ -235,7 +237,7 @@ const ChatBotDemo = () => {
           body: {
             model: model,
           },
-        },
+        }
       );
     }
   };
@@ -249,7 +251,7 @@ const ChatBotDemo = () => {
           body: {
             model: model,
           },
-        },
+        }
       );
       setInput("");
     }
@@ -277,7 +279,7 @@ const ChatBotDemo = () => {
       // noop fallback
     }
     const el = document.getElementById(
-      "chat-input",
+      "chat-input"
     ) as HTMLTextAreaElement | null;
     el?.focus();
   };
@@ -351,7 +353,7 @@ const ChatBotDemo = () => {
                       <SourcesTrigger
                         count={
                           message.parts.filter(
-                            (part) => part.type === "source-url",
+                            (part) => part.type === "source-url"
                           ).length
                         }
                       />
@@ -390,6 +392,42 @@ const ChatBotDemo = () => {
                               )}
                             </MessageContent>
                           </Message>
+                          {/* Render sentiment chart card for reddit posts returned via tool */}
+                          {(() => {
+                            if (isStreamingThisPart) return null;
+                            try {
+                              const toolPart = message.parts.find(
+                                (p) =>
+                                  String((p as any).type || "").startsWith(
+                                    "tool-"
+                                  ) ||
+                                  String((p as any).type || "") ===
+                                    "dynamic-tool"
+                              ) as any;
+                              const out = toolPart?.output as any;
+                              const toolState: string | undefined =
+                                toolPart?.state;
+                              const isDone = toolState === "output-available";
+                              if (isDone && out?.chartData && out?.chartData.length) {
+                                console.log("[page] rendering sentiment card", {
+                                  count: out?.chartData.length,
+                                  query: out?.query,
+                                });
+                                return (
+                                  <div className="mt-4">
+                                    <SentimentChart
+                                      data={computeSentimentSeries(out?.chartData || [])}
+                                      title={out?.query
+                                          ? `Sentiment Analysis: ${out.query}`
+                                          : "Sentiment Analysis"
+                                      }
+                                    />
+                                  </div>
+                                );
+                              }
+                            } catch {}
+                            return null;
+                          })()}
                           {message.role === "assistant" &&
                             message.id === messages.at(-1)?.id &&
                             i === message.parts.length - 1 && (
@@ -477,11 +515,11 @@ const ChatBotDemo = () => {
                       body: {
                         model: model,
                       },
-                    },
+                    }
                   );
                   setInput("");
                   const el = document.getElementById(
-                    "chat-input",
+                    "chat-input"
                   ) as HTMLTextAreaElement | null;
                   el?.focus();
                 }}

@@ -18,7 +18,7 @@ const openrouter = createOpenRouter({
 
 export async function getLLMResponseTools(
   messages: UIMessage[],
-  model: string,
+  model: string
 ) {
   const result = await streamText({
     model: openrouter(model),

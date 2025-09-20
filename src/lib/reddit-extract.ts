@@ -2,6 +2,7 @@ export type RedditCore = {
   title: string;
   post: string; // selftext
   comments: string[]; // top 5 top-level comments by score, cleaned
+  createdAt: number; // epoch milliseconds
 };
 
 /**
@@ -19,6 +20,18 @@ export function extractRedditCore(input: unknown): RedditCore {
 
   const title: string = (postChild?.data?.title ?? "").toString();
   const post: string = (postChild?.data?.selftext ?? "").toString();
+  const createdUtc: number | undefined =
+    typeof postChild?.data?.created_utc === "number"
+      ? postChild.data.created_utc
+      : undefined;
+  const createdAt = (createdUtc ? createdUtc * 1000 : Date.now()) as number;
+  try {
+    console.log("[reddit-extract] extracted core", {
+      title,
+      createdUtc,
+      createdAt,
+    });
+  } catch {}
 
   // --- Comments (t1), top-level only ---
   const commentsListing = arr[1] as any;
@@ -39,11 +52,11 @@ export function extractRedditCore(input: unknown): RedditCore {
       (c: any) =>
         c.body &&
         c.body.toLowerCase() !== "[deleted]" &&
-        c.body.toLowerCase() !== "[removed]",
+        c.body.toLowerCase() !== "[removed]"
     )
     .sort((a: any, b: any) => b.score - a.score)
     .slice(0, 5)
     .map((c: any) => c.body);
 
-  return { title, post, comments: cleaned };
+  return { title, post, comments: cleaned, createdAt };
 }
